@@ -1,0 +1,65 @@
+name: Build Windows x64
+
+on:
+  workflow_dispatch:
+    inputs:
+      windows-repo-ref:
+        description: 'ungoogled-chromium-windows tag/branch'
+        required: false
+        default: 'master'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-windows-x64-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 360
+    defaults:
+      run:
+        working-directory: uw
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: ungoogled-software/ungoogled-chromium-windows
+          ref: ${{ inputs.windows-repo-ref }}
+          path: uw
+          fetch-depth: 1
+
+      - uses: actions/checkout@v6
+        with:
+          path: uw/ungoogled-chromium
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install httplib2==0.22.0
+
+      - name: Build
+        run: python build.py --ci -j 2
+        timeout-minutes: 330
+
+      - name: Package
+        if: success()
+        run: python package.py
+
+      - name: Upload installer
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64-installer
+          path: uw/build/*_installer_*.exe
+
+      - name: Upload portable zip
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64-portable
+          path: uw/build/*_windows_*.zip
