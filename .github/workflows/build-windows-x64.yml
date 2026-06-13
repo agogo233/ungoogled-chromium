@@ -17,8 +17,8 @@ concurrency:
 
 jobs:
   build:
-    runs-on: windows-2022
-    timeout-minutes: 360
+    runs-on: windows-latest
+    timeout-minutes: 780
     defaults:
       run:
         working-directory: uw
@@ -42,9 +42,18 @@ jobs:
       - name: Install dependencies
         run: pip install httplib2==0.22.0
 
+      - name: Patch internal timeout in build.py
+        shell: pwsh
+        run: |
+          $content = Get-Content build.py -Raw
+          # 将 3.5*60*60 (秒) 替换为 12*60*60 (秒), 即 12 小时
+          # 使用字面量替换避免正则特殊字符问题
+          $content = $content.Replace('3.5*60*60', '12*60*60')
+          Set-Content build.py -Value $content -NoNewline
+
       - name: Build
         run: python build.py --ci -j 2
-        timeout-minutes: 330
+        timeout-minutes: 720
 
       - name: Package
         if: success()
